@@ -1,4 +1,4 @@
-# Microschool Site Builder
+# Site Builder
 
 Visual editor for a static site hosted on GitHub Pages.
 
