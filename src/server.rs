@@ -14,7 +14,7 @@
 
 use std::fs;
 use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::{Shutdown, TcpListener, TcpStream};
 use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -26,6 +26,9 @@ const MAX_HEADER_BYTES: u64 = 16 * 1024;
 const MAX_HEADER_LINES: usize = 100;
 const MAX_RANGE_CHUNK: u64 = 8 * 1024 * 1024;
 const IO_TIMEOUT: Duration = Duration::from_secs(10);
+/// How much unread request data is discarded after an early error response.
+const MAX_DRAIN_BYTES: u64 = 1024 * 1024;
+const DRAIN_TIMEOUT: Duration = Duration::from_millis(250);
 
 const COMMON_HEADERS: &str = "X-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\n\
 Cross-Origin-Resource-Policy: same-origin\r\nCache-Control: no-store\r\nConnection: close\r\n";
@@ -189,6 +192,18 @@ fn parse_range(spec: &str, len: u64) -> Option<Result<(u64, u64), ()>> {
     Some(Ok((start, end.min(start + MAX_RANGE_CHUNK - 1))))
 }
 
+/// Closing a socket that still holds unread request data makes some stacks (macOS in
+/// particular) send a reset, which can destroy the response before the client reads it.
+/// After an early error, stop sending, then read and drop a bounded amount of input so
+/// the connection ends cleanly. Time and size are both capped, so this cannot be abused
+/// to hold a connection open.
+fn discard_unread(stream: &mut TcpStream) {
+    let _ = stream.flush();
+    let _ = stream.shutdown(Shutdown::Write);
+    let _ = stream.set_read_timeout(Some(DRAIN_TIMEOUT));
+    let _ = io::copy(&mut stream.take(MAX_DRAIN_BYTES), &mut io::sink());
+}
+
 fn handle(mut stream: TcpStream, root: &Path, port: u16) -> io::Result<()> {
     stream.set_read_timeout(Some(IO_TIMEOUT))?;
     stream.set_write_timeout(Some(IO_TIMEOUT))?;
@@ -217,7 +232,9 @@ fn handle(mut stream: TcpStream, root: &Path, port: u16) -> io::Result<()> {
         }
     }
     if !complete {
-        return respond(&mut stream, "431 Request Header Fields Too Large", "", b"headers too large");
+        let sent = respond(&mut stream, "431 Request Header Fields Too Large", "", b"headers too large");
+        discard_unread(&mut stream);
+        return sent;
     }
     let allowed = [format!("127.0.0.1:{port}"), format!("localhost:{port}")];
     if !host.is_some_and(|h| allowed.contains(&h)) {

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Preview server: after answering `431` to an oversized request it now drains a bounded amount of unread input before closing, so the response is no longer lost to a connection reset (failed intermittently on macOS).
+
+### Security
+- `cargo audit` is configured (`.cargo/audit.toml`) to ignore RUSTSEC-2026-0194 and RUSTSEC-2026-0195 (`quick-xml` 0.30, reached only via Linux AccessKit/AT-SPI from the local D-Bus), with the reasoning recorded. Remove when eframe is upgraded.
+
 ## 0.2.0
 
 ### Added

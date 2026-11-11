@@ -1,0 +1,16 @@
+# Read by `cargo audit` (and therefore by rustsec/audit-check) when run from the
+# repository root.
+
+[advisories]
+# quick-xml 0.30.0 is reached only through
+#   eframe -> egui-winit -> accesskit_winit -> accesskit_unix -> atspi -> zbus_xml
+# (Linux accessibility support). It parses introspection XML from the local D-Bus
+# session bus, not input from the network or from the sites Willow edits, so a
+# crafted start tag is not reachable by a remote attacker. The fix (quick-xml >= 0.41)
+# cannot be taken here because zbus_xml pins ^0.30.
+# Remove these entries when eframe is upgraded to a release whose AccessKit stack no
+# longer depends on zbus_xml 4.
+ignore = [
+    "RUSTSEC-2026-0194", # quick-xml: quadratic duplicate-attribute check
+    "RUSTSEC-2026-0195", # quick-xml: unbounded namespace declarations in NsReader
+]
