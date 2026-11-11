@@ -11,7 +11,7 @@ keywords = ["website-builder", "editor", "github-pages", "egui"]
 categories = ["gui", "web-programming"]
 
 [dependencies]
-eframe = "0.31"
+eframe = "0.37"
 egui_extras = { version = "0.31", features = ["file", "image"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
 rfd = "0.15"
