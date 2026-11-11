@@ -12,7 +12,7 @@ categories = ["gui", "web-programming"]
 
 [dependencies]
 eframe = "0.31"
-egui_extras = { version = "0.31", features = ["file", "image"] }
+egui_extras = { version = "0.37", features = ["file", "image"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
 rfd = "0.15"
 open = "5"
